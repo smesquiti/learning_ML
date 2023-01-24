@@ -107,3 +107,137 @@ caret::nearZeroVar(ames_train, saveMetrics = TRUE) %>%
 #When normalizing many variables, it’s best to use the Box-Cox (when feature values are strictly positive) or 
 #Yeo-Johnson (when feature values are not strictly positive) procedures as these methods will identify if a transformation is required and what the optimal transformation will be
 
+
+#normalize all numeric columns 
+
+recipe(Sale_Price ~ ., data = ames_train) %>% 
+  step_YeoJohnson(all_numeric())
+
+#standardizing to help with data interpretation 
+
+ames_recipe %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes())
+
+#lumping can also be used but be careful when you do so 
+
+#see how things are dispersed 
+count(ames_train, Screen_Porch) %>% arrange(n)
+
+#lump stuff together 
+# Lump levels for two features
+lumping <- recipe(Sale_Price ~ ., data = ames_train) %>%
+  step_other(Neighborhood, threshold = 0.01, 
+             other = "other") %>%
+  step_other(Screen_Porch, threshold = 0.1, 
+             other = ">0")
+
+apply_2_training <- prep(lumping, training = ames_train) %>%
+  bake(ames_train)
+
+#new distribution of neighborhoods
+count(apply_2_training, Neighborhood) %>% arrange(n)
+
+# New distribution of Screen_Porch
+count(apply_2_training, Screen_Porch) %>% arrange(n) #number of porches with and with Screens 
+
+#one hot coding and dummy coding                                                   
+
+# Lump levels for two features together 
+recipe(Sale_Price ~ ., data = ames_train) %>% 
+  step_dummy(all_nominal(), one_hot = T) #step_dummy() will create a full rank encoding
+
+#dummy and one hot coding can increase the dimensionality of your dataset. so be weary of how you label things 
+
+#Label encoding is a pure numeric conversion of the levels of a categorical variable
+#If a categorical variable is a factor and it has pre-specified levels then the numeric conversion will be in level order. 
+#If no levels are specified, the encoding will be based on alphabetical order
+
+#recode some factors in the dataset to numeric 
+count(ames_train, MS_SubClass)
+
+# Label encoded
+recipe(Sale_Price ~ ., data = ames_train) %>%
+  step_integer(MS_SubClass) %>%
+  prep(ames_train) %>%
+  bake(ames_train) %>%
+  count(MS_SubClass)
+
+#need to be careful with the order though 
+
+#when there is a rank order (e.g., very bad -- very good) it's better to work with 
+#that is, ordinal data is easier to work with 
+
+ames_train %>% select(contains("Qual"))
+
+#original categories
+count(ames_train, Overall_Qual)
+
+
+#now make it numeric 
+recipe(Sale_Price ~., data = ames_train) %>% 
+  step_integer(Overall_Qual) %>% 
+  prep(ames_train) %>% 
+  bake(ames_train) %>% 
+  count(Overall_Qual)
+
+#now we can see how it was converted to integers
+
+#there are also some alternatives 
+
+#target encoding is the process of replacing a categorical value with the mean (regression) or proportion (classification) of the target variable
+
+#Target encoding runs the risk of data leakage since you are using the response variable to encode a feature
+
+#dimension reduction is an alternative approacb to filter out non-informative features without manually removing them 
+
+#using PCA on the data 
+recipe(Sale_Price ~ ., data = ames_train) %>% 
+  step_center(all_numeric()) %>% 
+  step_scale(all_numeric()) %>% 
+  step_pca(all_numeric(), threshold = 0.95)
+
+#putting the processes together 
+blueprint <- recipe(Sale_Price ~ ., data = ames_train) %>% #upply the formula of interest (the target variable, features, and the data these are based on) 
+  step_nzv(all_nominal())  %>% #Remove near-zero variance features that are categorical (aka nominal).
+  step_integer(matches("Qual|Cond|QC|Qu")) %>% #Ordinal encode our quality-based features (which are inherently ordinal).
+  step_center(all_numeric(), -all_outcomes()) %>% #Center and scale (i.e., standardize) all numeric features.
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_pca(all_numeric(), -all_outcomes()) #Perform dimension reduction by applying PCA to all numeric features.
+
+#train the bluepront on some data. but remember we don't want to train the data on some of these features 
+
+prepare <- prep(blueprint, training = ames_train)
+
+#Lastly, we can apply our blueprint to new data (e.g., the training data or future test data) with bake().
+baked_train <- bake(prepare, new_data = ames_train) #make our training dataset 
+baked_test <- bake(prepare, new_data = ames_test) #make testing ataset 
+baked_train
+
+#First, we create our feature engineering blueprint to perform the following tasks:
+
+blueprint <- recipe(Sale_Price ~ ., data = ames_train) %>%
+  step_nzv(all_nominal()) %>%#Filter out near-zero variance features for categorical features.
+  step_integer(matches("Qual|Cond|QC|Qu")) %>% #Ordinally encode all quality features, which are on a 1–10 Likert scale.
+  step_center(all_numeric(), -all_outcomes()) %>% #Standardize (center and scale) all numeric features.
+  step_scale(all_numeric(), -all_outcomes()) %>% #One-hot encode our remaining categorical features.
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
+
+# Specify resampling plan 
+cv <- trainControl(
+  method = "repeatedcv", 
+  number = 10, 
+  repeats = 5
+)
+
+hyper_grid <- expand.grid(k = seq(2, 25, by = 1)) # Construct grid of hyperparameter values
+
+knn_fit2 <- train(
+  blueprint, 
+  data = ames_train, 
+  method = "knn", 
+  trControl = cv, 
+  tuneGrid = hyper_grid,
+  metric = "RMSE"
+)
+
