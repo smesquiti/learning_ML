@@ -10,6 +10,7 @@ summary(model1)
 
 plot(model1)
 
+
 #getting the RMSE 
 sigma(model1)
 
@@ -51,7 +52,7 @@ broom::tidy(model3)
 #Use RMSE to assess model accuarcy 
 
 #use caret to assess fit 
-set.seed(123)
+set.seed(123) #set for reproducability 
 
 (cv_model1 <- train(
   form = Sale_Price ~ Gr_Liv_Area,
@@ -166,8 +167,8 @@ cv_model_pcr <- train(
   data = ames_train, 
   method = "pcr", #modify to use PCA 
   trControl = trainControl(method = "cv", number = 10), #setting our CV method 
-  preProcess = c("zv", "center", "scale"), #setting preprocess stuff 
-  tuneLength = 100
+  preProcess = c("zv", "center", "scale"), #setting preprocess stuff, center scale and ignore zero variance predictors 
+  tuneLength = 100 #tune length, using 100 principal components 
 )
 
 # model with lowest RMSE
@@ -229,7 +230,7 @@ vip::vip(cv_model_pls, num_features = 20, method = 'model')
 #The importance measure is normalized from 100 (most important) to 0 (least important)
 
 #construct partial dependency plots to viz the change in the average predicted value 
-pdp::partial(cv_model_pls, "Gr_Liv_Area", grid.resolution = 20, plot = TRUE)
+pdp::partial(cv_model_pls, "Gr_Liv_Area", grid.resolution = 20, plot = TRUE) #can prune to only display a certain amount 
 pdp::partial(cv_model_pls, "First_Flr_SF", grid.resolution = 20, plot = TRUE)
 pdp::partial(cv_model_pls, "Garage_Cars", grid.resolution = 20, plot = TRUE)
 pdp::partial(cv_model_pls, "Garage_Area", grid.resolution = 20, plot = TRUE)

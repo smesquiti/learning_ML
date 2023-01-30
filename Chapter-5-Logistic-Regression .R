@@ -9,9 +9,9 @@ df <- attrition %>% mutate_if(is.ordered, factor, ordered = FALSE) #need to inst
 
 # Create training (70%) and test (30%) sets for the 
 set.seed(123)
-churn_split <- initial_split(df, prop = 0.7, strata = "Attrition")
-churn_train <- training(churn_split)
-churn_test <- testing(churn_split)
+churn_split <- initial_split(df, prop = 0.7, strata = "Attrition") #split the data, stratafying on our outcome variable "Attrition"
+churn_train <- training(churn_split) #designating our training dataset
+churn_test <- testing(churn_split) #designation our testing dataset
 
 #simple logistic regression 
 
@@ -73,7 +73,8 @@ summary(
     )
   )
 )
-#model 3 has the best accuracy 
+
+#model 3 has the best accuracy of the three, which makes sense 
 
 #now use the confusion matrix to actually see the accuracy 
 
@@ -86,11 +87,13 @@ confusionMatrix(
   reference = relevel(churn_train$Attrition, ref = "Yes")
 )
 
+#plotting simple model to full model 
+
 
 library(ROCR)
 
 # Compute predicted probabilities
-m1_prob <- predict(cv_model1, churn_train, type = "prob")$Yes
+m1_prob <- predict(cv_model1, churn_train, type = "prob")$Yes # we want to predict "Yes" for each model
 m3_prob <- predict(cv_model3, churn_train, type = "prob")$Yes
 
 # Compute AUC metrics for cv_model1 and cv_model3
@@ -111,11 +114,11 @@ set.seed(123)
 cv_model_pls <- train(
   Attrition ~ ., 
   data = churn_train, 
-  method = "pls",
-  family = "binomial",
-  trControl = trainControl(method = "cv", number = 10),
-  preProcess = c("zv", "center", "scale"),
-  tuneLength = 16
+  method = "pls", #partial least squares 
+  family = "binomial", #binonmial distributions
+  trControl = trainControl(method = "cv", number = 10), #CV method
+  preProcess = c("zv", "center", "scale"), #center, scale, and cut zero variance predictors
+  tuneLength = 16 #hunt for 16 predictors 
 )
 
 #get the model with the optimal number of parameters 
@@ -127,12 +130,12 @@ cv_model_pls$bestTune
 cv_model_pls$results %>%
   dplyr::filter(ncomp == pull(cv_model_pls$bestTune))
 
-#model with the lowest loss is also 6
+#model with the lowest loss is also 11
 
 #visualize 
 ggplot(cv_model_pls)
 
-#also see that the number of components is 6 based on the graph 
+#also see that the number of components is 11 based on the graph 
 
 #Now need to see which features are especially meaningful 
 
