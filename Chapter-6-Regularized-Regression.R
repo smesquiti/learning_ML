@@ -33,7 +33,7 @@ Y <- log(ames_train$Sale_Price) #creating our y variable
 #we need to ensure our coefficients are on a common scale.
 #If not, then predictors with naturally larger values (e.g., total square footage) will be penalized more than predictors with naturally smaller values (e.g., total number of rooms).
 
-# Apply ridge regression to ames data
+# Apply ridge regression to ames data, function also standardizes stuff before hand 
 ridge <- glmnet(
   x = X,
   y = Y,
@@ -50,6 +50,8 @@ coef(ridge)[c("Latitude", "Overall_QualVery_Excellent"), 100]
 
 # large lambda results in small coefficients
 coef(ridge)[c("Latitude", "Overall_QualVery_Excellent"), 1] 
+
+#Tuning 
 
 #we can also tune things using cross-validation 
 
@@ -120,6 +122,9 @@ abline(v = log(lasso$lambda.1se), col = "blue", lty = "dashed")
 
 #Often, the optimal model contains an alpha somewhere between 0–1, thus we want to tune both the λ and the alpha parameters.
 
+#use the caret package to automate tuning
+
+
 # for reproducibility
 set.seed(123)
 
@@ -153,24 +158,24 @@ RMSE(exp(pred), exp(Y))
 
 vip(cv_glmnet, num_features = 20, geom = "point")
 
-#Attrutuion data 
-df <- attrition %>% mutate_if(is.ordered, factor, ordered = FALSE)
+#Attrition data 
+df <- attrition %>% mutate_if(is.ordered, factor, ordered = FALSE) #read in the data
 
 # Create training (70%) and test (30%) sets for the
 # rsample::attrition data. Use set.seed for reproducibility
-set.seed(123)
-churn_split <- initial_split(df, prop = .7, strata = "Attrition")
-train <- training(churn_split)
-test  <- testing(churn_split)
+set.seed(123) #for repro
+churn_split <- initial_split(df, prop = .7, strata = "Attrition") #stratify on the DV
+train <- training(churn_split) #training data
+test  <- testing(churn_split) #testing data
 
 # train logistic regression model (classic logit)
 set.seed(123)
 glm_mod <- train(
   Attrition ~ ., #training all variables
   data = train, 
-  method = "glm",
+  method = "glm",#standard GLM 
   family = "binomial",
-  preProc = c("zv", "center", "scale"),
+  preProc = c("zv", "center", "scale"), #center, scale, and remove zero variance variables 
   trControl = trainControl(method = "cv", number = 10)
 )
 
